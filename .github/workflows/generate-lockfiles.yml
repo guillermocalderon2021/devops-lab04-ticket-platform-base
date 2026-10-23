@@ -1,0 +1,36 @@
+name: Generate npm lockfiles
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/generate-lockfiles.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Generar package-lock.json de API
+        working-directory: api
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Generar package-lock.json de frontend
+        working-directory: frontend
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Versionar lockfiles
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add api/package-lock.json frontend/package-lock.json
+          git commit -m "Add npm lockfiles"
+          git push
