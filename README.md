@@ -76,7 +76,8 @@ El bootstrap crea fuera del Terraform evaluado:
 - Storage Account y Blob Container destinados al state remoto que se utilizará posteriormente;
 - managed identity de plan;
 - managed identity de apply;
-- RBAC base para ambas identidades.
+- RBAC base para ambas identidades;
+- acceso `Storage Blob Data Contributor` para el usuario que ejecuta el bootstrap sobre la cuenta de state, necesario para migrar y verificar el backend mediante Microsoft Entra ID.
 
 Los valores descubiertos o generados quedan en `config/bootstrap.env`, excluido de Git.
 
@@ -89,7 +90,7 @@ El Blob Container `tfstate` queda inicialmente vacío porque la línea base cont
 ./scripts/03-configure-github.sh
 ```
 
-Se configuran las federated identity credentials, GitHub Environments y las variables requeridas por GitHub Actions.
+Se configuran las federated identity credentials, GitHub Environments y las variables requeridas por GitHub Actions. También se publican los object IDs de las identidades de plan y apply para que puedan utilizarse posteriormente en la configuración Terraform.
 
 ### 4. Generar los archivos locales de Terraform
 
