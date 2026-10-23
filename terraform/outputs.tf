@@ -3,12 +3,7 @@ output "api_url" {
 }
 
 output "frontend_hostname" {
-  value = azurerm_static_web_app.frontend.default_host_name
-}
-
-output "static_web_app_api_key" {
-  value     = azurerm_static_web_app.frontend.api_key
-  sensitive = true
+  value = azurerm_container_app.frontend.ingress[0].fqdn
 }
 
 output "container_registry_name" {
