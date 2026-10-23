@@ -18,7 +18,7 @@ type Evidence = {
   content_type: string | null;
 };
 
-const API = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const API = import.meta.env.VITE_API_URL ?? '/api';
 
 function App() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
