@@ -22,9 +22,6 @@ resource "azurerm_container_registry" "main" {
   tags                = local.tags
 }
 
-# La identidad usada por GitHub Actions para los apply también publica la
-# imagen de la API. La autenticación se realiza mediante OIDC, no mediante
-# credenciales del administrador del registry.
 resource "azurerm_role_assignment" "github_acr_push" {
   scope                = azurerm_container_registry.main.id
   role_definition_name = "AcrPush"
@@ -32,19 +29,17 @@ resource "azurerm_role_assignment" "github_acr_push" {
   principal_type       = "ServicePrincipal"
 }
 
-# Identidad de ejecución usada únicamente para que Container Apps pueda
-# descargar imágenes privadas desde ACR.
-resource "azurerm_user_assigned_identity" "api_pull" {
+resource "azurerm_user_assigned_identity" "app_pull" {
   name                = "id-${local.prefix}-acr-pull"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
   tags                = local.tags
 }
 
-resource "azurerm_role_assignment" "api_acr_pull" {
+resource "azurerm_role_assignment" "app_acr_pull" {
   scope                            = azurerm_container_registry.main.id
   role_definition_name             = "AcrPull"
-  principal_id                     = azurerm_user_assigned_identity.api_pull.principal_id
+  principal_id                     = azurerm_user_assigned_identity.app_pull.principal_id
   principal_type                   = "ServicePrincipal"
   skip_service_principal_aad_check = true
 }
@@ -108,12 +103,12 @@ resource "azurerm_container_app" "api" {
 
   identity {
     type         = "UserAssigned"
-    identity_ids = [azurerm_user_assigned_identity.api_pull.id]
+    identity_ids = [azurerm_user_assigned_identity.app_pull.id]
   }
 
   registry {
     server   = azurerm_container_registry.main.login_server
-    identity = azurerm_user_assigned_identity.api_pull.id
+    identity = azurerm_user_assigned_identity.app_pull.id
   }
 
   secret {
@@ -136,46 +131,16 @@ resource "azurerm_container_app" "api" {
       cpu    = 0.25
       memory = "0.5Gi"
 
-      env {
-        name  = "PORT"
-        value = "3000"
-      }
-      env {
-        name  = "DATABASE_HOST"
-        value = azurerm_postgresql_flexible_server.main.fqdn
-      }
-      env {
-        name  = "DATABASE_PORT"
-        value = "5432"
-      }
-      env {
-        name  = "DATABASE_NAME"
-        value = azurerm_postgresql_flexible_server_database.tickets.name
-      }
-      env {
-        name  = "DATABASE_USER"
-        value = "ticketadmin"
-      }
-      env {
-        name  = "DATABASE_SSL"
-        value = "true"
-      }
-      env {
-        name        = "DATABASE_PASSWORD"
-        secret_name = "db-password"
-      }
-      env {
-        name  = "AZURE_STORAGE_ACCOUNT_NAME"
-        value = azurerm_storage_account.main.name
-      }
-      env {
-        name        = "AZURE_STORAGE_ACCOUNT_KEY"
-        secret_name = "storage-key"
-      }
-      env {
-        name  = "AZURE_STORAGE_CONTAINER_NAME"
-        value = azurerm_storage_container.evidence.name
-      }
+      env { name = "PORT" value = "3000" }
+      env { name = "DATABASE_HOST" value = azurerm_postgresql_flexible_server.main.fqdn }
+      env { name = "DATABASE_PORT" value = "5432" }
+      env { name = "DATABASE_NAME" value = azurerm_postgresql_flexible_server_database.tickets.name }
+      env { name = "DATABASE_USER" value = "ticketadmin" }
+      env { name = "DATABASE_SSL" value = "true" }
+      env { name = "DATABASE_PASSWORD" secret_name = "db-password" }
+      env { name = "AZURE_STORAGE_ACCOUNT_NAME" value = azurerm_storage_account.main.name }
+      env { name = "AZURE_STORAGE_ACCOUNT_KEY" secret_name = "storage-key" }
+      env { name = "AZURE_STORAGE_CONTAINER_NAME" value = azurerm_storage_container.evidence.name }
     }
   }
 
@@ -189,14 +154,55 @@ resource "azurerm_container_app" "api" {
     }
   }
 
-  depends_on = [azurerm_role_assignment.api_acr_pull]
+  depends_on = [azurerm_role_assignment.app_acr_pull]
 }
 
-resource "azurerm_static_web_app" "frontend" {
-  name                = "swa-${local.prefix}"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  sku_tier            = "Free"
-  sku_size            = "Free"
-  tags                = local.tags
+resource "azurerm_container_app" "frontend" {
+  name                         = "ca-${local.prefix}-frontend"
+  container_app_environment_id = azurerm_container_app_environment.main.id
+  resource_group_name          = azurerm_resource_group.main.name
+  revision_mode                = "Single"
+  tags                         = local.tags
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.app_pull.id]
+  }
+
+  registry {
+    server   = azurerm_container_registry.main.login_server
+    identity = azurerm_user_assigned_identity.app_pull.id
+  }
+
+  template {
+    min_replicas = 0
+    max_replicas = 1
+
+    container {
+      name   = "ticket-frontend"
+      image  = "${azurerm_container_registry.main.login_server}/${var.frontend_image_name}:${var.image_tag}"
+      cpu    = 0.25
+      memory = "0.5Gi"
+
+      env {
+        name  = "API_UPSTREAM"
+        value = "https://${azurerm_container_app.api.ingress[0].fqdn}"
+      }
+    }
+  }
+
+  ingress {
+    external_enabled = true
+    target_port      = 8080
+
+    traffic_weight {
+      percentage      = 100
+      latest_revision = true
+    }
+  }
+
+  depends_on = [
+    azurerm_role_assignment.app_acr_pull,
+    azurerm_container_app.api
+  ]
 }
