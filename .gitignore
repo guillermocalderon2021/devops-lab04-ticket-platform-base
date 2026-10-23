@@ -1,0 +1,15 @@
+**/node_modules/
+**/dist/
+.env
+**/.env*.local
+.generated/
+config/lab.env
+**/.env*.local
+config/bootstrap.env
+**/.env*.local
+terraform/.terraform/
+terraform/*.tfstate*
+terraform/terraform.tfvars
+terraform/secrets.auto.tfvars
+terraform/.terraform.lock.hcl
+*.tfplan

@@ -1,0 +1,37 @@
+name: Publish API image
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Tag de la imagen que se publicará en ACR
+        required: true
+        default: baseline
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: shared
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Autenticar en Azure mediante OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.APPLY_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Autenticar Docker en ACR
+        run: az acr login --name "${{ vars.ACR_NAME }}"
+
+      - name: Construir y publicar imagen
+        working-directory: api
+        run: |
+          IMAGE="${{ vars.ACR_NAME }}.azurecr.io/${{ vars.IMAGE_NAME }}:${{ inputs.image_tag }}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"

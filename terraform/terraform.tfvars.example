@@ -1,0 +1,9 @@
+# Este archivo se genera automáticamente a partir de config/lab.env y
+# config/bootstrap.env. Se muestra únicamente como referencia.
+subscription_id    = "00000000-0000-0000-0000-000000000000"
+location           = "REGION_PERMITIDA"
+name_suffix        = "abc123"
+acr_name           = "acrticketabc123"
+image_name         = "ticket-api"
+image_tag          = "baseline"
+apply_principal_id = "00000000-0000-0000-0000-000000000000"
