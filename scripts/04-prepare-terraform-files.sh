@@ -13,13 +13,14 @@ SECRETS_FILE="$ROOT_DIR/terraform/secrets.auto.tfvars"
 }
 
 cat > "$ROOT_DIR/terraform/terraform.tfvars" <<TFVARS
-subscription_id    = "$AZURE_SUBSCRIPTION_ID"
-location           = "$AZURE_LOCATION"
-name_suffix        = "$NAME_SUFFIX"
-acr_name           = "$ACR_NAME"
-image_name         = "$IMAGE_NAME"
-image_tag          = "$IMAGE_TAG"
-apply_principal_id = "$APPLY_PRINCIPAL_ID"
+subscription_id      = "$AZURE_SUBSCRIPTION_ID"
+location             = "$AZURE_LOCATION"
+name_suffix          = "$NAME_SUFFIX"
+acr_name             = "$ACR_NAME"
+image_name           = "$IMAGE_NAME"
+frontend_image_name  = "$FRONTEND_IMAGE_NAME"
+image_tag            = "$IMAGE_TAG"
+apply_principal_id   = "$APPLY_PRINCIPAL_ID"
 TFVARS
 
 printf 'terraform/terraform.tfvars generado a partir de los archivos locales de configuración.\n'
