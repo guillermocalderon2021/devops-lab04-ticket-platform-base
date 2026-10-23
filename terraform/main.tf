@@ -29,17 +29,17 @@ resource "azurerm_role_assignment" "github_acr_push" {
   principal_type       = "ServicePrincipal"
 }
 
-resource "azurerm_user_assigned_identity" "app_pull" {
+resource "azurerm_user_assigned_identity" "api_pull" {
   name                = "id-${local.prefix}-acr-pull"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
   tags                = local.tags
 }
 
-resource "azurerm_role_assignment" "app_acr_pull" {
+resource "azurerm_role_assignment" "api_acr_pull" {
   scope                            = azurerm_container_registry.main.id
   role_definition_name             = "AcrPull"
-  principal_id                     = azurerm_user_assigned_identity.app_pull.principal_id
+  principal_id                     = azurerm_user_assigned_identity.api_pull.principal_id
   principal_type                   = "ServicePrincipal"
   skip_service_principal_aad_check = true
 }
@@ -103,12 +103,12 @@ resource "azurerm_container_app" "api" {
 
   identity {
     type         = "UserAssigned"
-    identity_ids = [azurerm_user_assigned_identity.app_pull.id]
+    identity_ids = [azurerm_user_assigned_identity.api_pull.id]
   }
 
   registry {
     server   = azurerm_container_registry.main.login_server
-    identity = azurerm_user_assigned_identity.app_pull.id
+    identity = azurerm_user_assigned_identity.api_pull.id
   }
 
   secret {
@@ -154,7 +154,7 @@ resource "azurerm_container_app" "api" {
     }
   }
 
-  depends_on = [azurerm_role_assignment.app_acr_pull]
+  depends_on = [azurerm_role_assignment.api_acr_pull]
 }
 
 resource "azurerm_container_app" "frontend" {
@@ -166,12 +166,12 @@ resource "azurerm_container_app" "frontend" {
 
   identity {
     type         = "UserAssigned"
-    identity_ids = [azurerm_user_assigned_identity.app_pull.id]
+    identity_ids = [azurerm_user_assigned_identity.api_pull.id]
   }
 
   registry {
     server   = azurerm_container_registry.main.login_server
-    identity = azurerm_user_assigned_identity.app_pull.id
+    identity = azurerm_user_assigned_identity.api_pull.id
   }
 
   template {
@@ -202,7 +202,7 @@ resource "azurerm_container_app" "frontend" {
   }
 
   depends_on = [
-    azurerm_role_assignment.app_acr_pull,
+    azurerm_role_assignment.api_acr_pull,
     azurerm_container_app.api
   ]
 }
