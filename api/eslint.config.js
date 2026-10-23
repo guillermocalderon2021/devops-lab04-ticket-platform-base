@@ -6,6 +6,9 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     ignores: ['dist/**'],
-    languageOptions: { globals: { process: 'readonly', console: 'readonly' } }
+    languageOptions: { globals: { process: 'readonly', console: 'readonly' } },
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
+    }
   }
 );

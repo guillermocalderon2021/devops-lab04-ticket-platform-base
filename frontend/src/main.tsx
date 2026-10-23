@@ -37,7 +37,23 @@ function App() {
     setSelected(await response.json());
   }
 
-  useEffect(() => { void loadTickets(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchInitialTickets() {
+      const response = await fetch(`${API}/tickets`);
+      const data = await response.json() as Ticket[];
+      if (!cancelled) {
+        setTickets(data);
+      }
+    }
+
+    void fetchInitialTickets();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function createTicket(event: React.FormEvent) {
     event.preventDefault();
