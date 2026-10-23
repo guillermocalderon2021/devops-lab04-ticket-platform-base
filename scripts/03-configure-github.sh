@@ -9,7 +9,7 @@ source "$ROOT_DIR/config/bootstrap.env"
 REPO="$GITHUB_REPOSITORY"
 for env in shared development production; do
   gh api --method PUT "repos/${REPO}/environments/${env}" >/dev/null
- done
+done
 
 declare -A VARS=(
   [AZURE_SUBSCRIPTION_ID]="$AZURE_SUBSCRIPTION_ID"
@@ -23,6 +23,7 @@ declare -A VARS=(
   [TFSTATE_CONTAINER]="$TFSTATE_CONTAINER"
   [ACR_NAME]="$ACR_NAME"
   [IMAGE_NAME]="$IMAGE_NAME"
+  [FRONTEND_IMAGE_NAME]="$FRONTEND_IMAGE_NAME"
 )
 for key in "${!VARS[@]}"; do
   gh variable set "$key" --repo "$REPO" --body "${VARS[$key]}"
