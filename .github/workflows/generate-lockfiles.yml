@@ -1,4 +1,4 @@
-name: Generate npm lockfiles
+name: Generate dependency lockfiles
 
 on:
   push:
@@ -19,6 +19,10 @@ jobs:
         with:
           node-version: '22'
 
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.5
+
       - name: Generar package-lock.json de API
         working-directory: api
         run: npm install --package-lock-only --ignore-scripts
@@ -27,10 +31,18 @@ jobs:
         working-directory: frontend
         run: npm install --package-lock-only --ignore-scripts
 
+      - name: Generar .terraform.lock.hcl
+        working-directory: terraform
+        run: terraform init -backend=false -input=false
+
       - name: Versionar lockfiles
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add api/package-lock.json frontend/package-lock.json
-          git commit -m "Add npm lockfiles"
+          git add api/package-lock.json frontend/package-lock.json terraform/.terraform.lock.hcl
+          if git diff --cached --quiet; then
+            echo "No hay cambios en lockfiles."
+            exit 0
+          fi
+          git commit -m "Add dependency lockfiles"
           git push
