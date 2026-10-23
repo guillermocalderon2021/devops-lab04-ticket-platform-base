@@ -131,16 +131,46 @@ resource "azurerm_container_app" "api" {
       cpu    = 0.25
       memory = "0.5Gi"
 
-      env { name = "PORT" value = "3000" }
-      env { name = "DATABASE_HOST" value = azurerm_postgresql_flexible_server.main.fqdn }
-      env { name = "DATABASE_PORT" value = "5432" }
-      env { name = "DATABASE_NAME" value = azurerm_postgresql_flexible_server_database.tickets.name }
-      env { name = "DATABASE_USER" value = "ticketadmin" }
-      env { name = "DATABASE_SSL" value = "true" }
-      env { name = "DATABASE_PASSWORD" secret_name = "db-password" }
-      env { name = "AZURE_STORAGE_ACCOUNT_NAME" value = azurerm_storage_account.main.name }
-      env { name = "AZURE_STORAGE_ACCOUNT_KEY" secret_name = "storage-key" }
-      env { name = "AZURE_STORAGE_CONTAINER_NAME" value = azurerm_storage_container.evidence.name }
+      env {
+        name  = "PORT"
+        value = "3000"
+      }
+      env {
+        name  = "DATABASE_HOST"
+        value = azurerm_postgresql_flexible_server.main.fqdn
+      }
+      env {
+        name  = "DATABASE_PORT"
+        value = "5432"
+      }
+      env {
+        name  = "DATABASE_NAME"
+        value = azurerm_postgresql_flexible_server_database.tickets.name
+      }
+      env {
+        name  = "DATABASE_USER"
+        value = "ticketadmin"
+      }
+      env {
+        name  = "DATABASE_SSL"
+        value = "true"
+      }
+      env {
+        name        = "DATABASE_PASSWORD"
+        secret_name = "db-password"
+      }
+      env {
+        name  = "AZURE_STORAGE_ACCOUNT_NAME"
+        value = azurerm_storage_account.main.name
+      }
+      env {
+        name        = "AZURE_STORAGE_ACCOUNT_KEY"
+        secret_name = "storage-key"
+      }
+      env {
+        name  = "AZURE_STORAGE_CONTAINER_NAME"
+        value = azurerm_storage_container.evidence.name
+      }
     }
   }
 
