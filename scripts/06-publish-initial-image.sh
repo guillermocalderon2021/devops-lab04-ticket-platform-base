@@ -6,9 +6,9 @@ source "$ROOT_DIR/config/lab.env"
 
 REPO="$GITHUB_REPOSITORY"
 
-gh workflow run publish-api.yml --repo "$REPO" -f image_tag="$IMAGE_TAG"
+gh workflow run publish-images.yml --repo "$REPO" -f image_tag="$IMAGE_TAG"
 sleep 3
-RUN_ID=$(gh run list --repo "$REPO" --workflow publish-api.yml --event workflow_dispatch --limit 1 --json databaseId -q '.[0].databaseId')
-[[ -n "$RUN_ID" ]] || { echo "No se encontró la ejecución del workflow publish-api.yml" >&2; exit 1; }
+RUN_ID=$(gh run list --repo "$REPO" --workflow publish-images.yml --event workflow_dispatch --limit 1 --json databaseId -q '.[0].databaseId')
+[[ -n "$RUN_ID" ]] || { echo "No se encontró la ejecución del workflow publish-images.yml" >&2; exit 1; }
 gh run watch "$RUN_ID" --repo "$REPO" --exit-status
 printf 'Imágenes iniciales de API y frontend publicadas en ACR.\n'
