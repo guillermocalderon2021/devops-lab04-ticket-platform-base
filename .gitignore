@@ -5,8 +5,9 @@
 .generated/
 config/lab.env
 config/bootstrap.env
-terraform/.terraform/
-terraform/*.tfstate*
-terraform/terraform.tfvars
-terraform/secrets.auto.tfvars
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/terraform.tfvars
+**/secrets.auto.tfvars
 *.tfplan
