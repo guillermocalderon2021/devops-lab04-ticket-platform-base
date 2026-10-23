@@ -20,6 +20,7 @@ acr_name             = "$ACR_NAME"
 image_name           = "$IMAGE_NAME"
 frontend_image_name  = "$FRONTEND_IMAGE_NAME"
 image_tag            = "$IMAGE_TAG"
+plan_principal_id    = "$PLAN_PRINCIPAL_ID"
 apply_principal_id   = "$APPLY_PRINCIPAL_ID"
 TFVARS
 
