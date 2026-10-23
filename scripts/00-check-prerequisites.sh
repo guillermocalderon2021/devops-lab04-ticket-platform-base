@@ -17,6 +17,7 @@ source "$CONFIG_FILE"
 : "${AZURE_LOCATION:?Defina AZURE_LOCATION en config/lab.env}"
 : "${GITHUB_REPOSITORY:?Defina GITHUB_REPOSITORY en config/lab.env}"
 : "${IMAGE_NAME:?Defina IMAGE_NAME en config/lab.env}"
+: "${FRONTEND_IMAGE_NAME:?Defina FRONTEND_IMAGE_NAME en config/lab.env}"
 : "${IMAGE_TAG:?Defina IMAGE_TAG en config/lab.env}"
 
 az account show >/dev/null
