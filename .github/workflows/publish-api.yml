@@ -1,10 +1,10 @@
-name: Publish API image
+name: Publish application images
 
 on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: Tag de la imagen que se publicará en ACR
+        description: Tag de las imágenes que se publicarán en ACR
         required: true
         default: baseline
 
@@ -29,9 +29,16 @@ jobs:
       - name: Autenticar Docker en ACR
         run: az acr login --name "${{ vars.ACR_NAME }}"
 
-      - name: Construir y publicar imagen
+      - name: Construir y publicar API
         working-directory: api
         run: |
           IMAGE="${{ vars.ACR_NAME }}.azurecr.io/${{ vars.IMAGE_NAME }}:${{ inputs.image_tag }}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+
+      - name: Construir y publicar frontend
+        working-directory: frontend
+        run: |
+          IMAGE="${{ vars.ACR_NAME }}.azurecr.io/${{ vars.FRONTEND_IMAGE_NAME }}:${{ inputs.image_tag }}"
           docker build -t "$IMAGE" .
           docker push "$IMAGE"
