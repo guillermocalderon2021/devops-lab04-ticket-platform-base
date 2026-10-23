@@ -10,26 +10,31 @@ La infraestructura entregada es funcional pero deliberadamente limitada:
 - un único root module de Terraform;
 - state local;
 - sin módulos reutilizables;
-- sin separación `shared`, `development` y `production`;
-- sin workflows de Terraform.
+- sin separación entre infraestructura compartida, desarrollo y producción;
+- sin backend remoto configurado en Terraform;
+- sin workflows de Terraform para plan o apply.
 
-La aplicación, su CI y un workflow auxiliar para publicar la imagen inicial en Azure Container Registry ya están incluidos. El ACR forma parte de la infraestructura creada por Terraform.
+La aplicación, su CI y un workflow auxiliar para publicar las imágenes iniciales en Azure Container Registry ya están incluidos.
 
 ## Arquitectura inicial
 
 ```text
-Static Web App
-      |
-      v
-Container App <---- Azure Container Registry
-   |       |
-   v       v
-PostgreSQL Blob Storage
+                        Azure Container Registry
+                         /                   \
+                        v                     v
+              Frontend Container App   API Container App
+                       |                     /       \
+                       |                    v         v
+                       |                PostgreSQL  Blob Storage
+                       |                     ^
+                       +------ /api ---------+
 ```
+
+El frontend utiliza React y se sirve mediante nginx dentro de un Container App. Las solicitudes a `/api` son reenviadas por nginx hacia el Container App de la API.
 
 ## Configuración local
 
-Los scripts no dependen de variables definidas en la sesión de terminal. Toda configuración local se mantiene en archivos excluidos de Git.
+Los scripts no dependen de variables persistentes definidas en la sesión de terminal. La configuración local se mantiene en archivos excluidos de Git.
 
 Crear:
 
@@ -44,12 +49,11 @@ Editar `config/lab.env`:
 AZURE_LOCATION=REGION_PERMITIDA
 GITHUB_REPOSITORY=OWNER/REPOSITORY
 IMAGE_NAME=ticket-api
+FRONTEND_IMAGE_NAME=ticket-frontend
 IMAGE_TAG=baseline
 ```
 
 Editar `terraform/secrets.auto.tfvars` y definir una contraseña válida para PostgreSQL.
-
-Estos dos archivos están incluidos en `.gitignore`.
 
 ## Secuencia para construir la línea base
 
@@ -59,7 +63,7 @@ Estos dos archivos están incluidos en `.gitignore`.
 ./scripts/00-check-prerequisites.sh
 ```
 
-El script verifica Azure CLI, Terraform, GitHub CLI, Git, Docker, Node.js y npm, además de comprobar `config/lab.env`.
+El script verifica Azure CLI, Terraform, GitHub CLI, Git, Docker, Node.js y npm.
 
 ### 2. Crear el bootstrap
 
@@ -69,12 +73,14 @@ El script verifica Azure CLI, Terraform, GitHub CLI, Git, Docker, Node.js y npm,
 
 El bootstrap crea fuera del Terraform evaluado:
 
-- Storage Account y Blob Container destinados al state remoto que se utilizará posteriormente en el laboratorio;
+- Storage Account y Blob Container destinados al state remoto que se utilizará posteriormente;
 - managed identity de plan;
 - managed identity de apply;
 - RBAC base para ambas identidades.
 
-Los valores descubiertos o generados quedan en `config/bootstrap.env`, también excluido de Git.
+Los valores descubiertos o generados quedan en `config/bootstrap.env`, excluido de Git.
+
+El Blob Container `tfstate` queda inicialmente vacío porque la línea base continúa utilizando state local.
 
 ### 3. Configurar OIDC y GitHub
 
@@ -83,7 +89,7 @@ Los valores descubiertos o generados quedan en `config/bootstrap.env`, también 
 ./scripts/03-configure-github.sh
 ```
 
-Se configuran las federated identity credentials y las variables del repositorio requeridas por GitHub Actions.
+Se configuran las federated identity credentials, GitHub Environments y las variables requeridas por GitHub Actions.
 
 ### 4. Generar los archivos locales de Terraform
 
@@ -93,45 +99,102 @@ Se configuran las federated identity credentials y las variables del repositorio
 
 El script combina `config/lab.env` y `config/bootstrap.env` para crear `terraform/terraform.tfvars`. Las credenciales sensibles permanecen en `terraform/secrets.auto.tfvars`.
 
-### 5. Crear ACR y los permisos necesarios
+### 5. Registrar Azure Container Registry y crear ACR
+
+Antes de ejecutar el script 05, registrar el resource provider requerido:
+
+```bash
+az provider register \
+  --namespace Microsoft.ContainerRegistry \
+  --wait
+```
+
+Verificar:
+
+```bash
+az provider show \
+  --namespace Microsoft.ContainerRegistry \
+  --query registrationState \
+  --output tsv
+```
+
+El resultado debe ser `Registered`.
+
+Después ejecutar:
 
 ```bash
 ./scripts/05-provision-registry.sh
 ```
 
-Esta primera aplicación parcial es necesaria por una dependencia de arranque: Container Apps necesita que la imagen exista antes de crear la aplicación. El script crea:
+Esta primera aplicación parcial resuelve la dependencia de arranque entre ACR y Container Apps. El script crea:
 
 - Azure Container Registry;
-- identidad de runtime utilizada por Container Apps para descargar imágenes;
+- identidad de runtime utilizada por los Container Apps para descargar imágenes;
 - `AcrPull` para esa identidad;
 - `AcrPush` para la identidad de GitHub Actions.
 
-ACR tiene deshabilitadas las credenciales administrativas.
+ACR mantiene deshabilitadas las credenciales administrativas.
 
-### 6. Publicar la imagen inicial mediante GitHub Actions
+### 6. Publicar las imágenes iniciales
 
 ```bash
 ./scripts/06-publish-initial-image.sh
 ```
 
-El script dispara `publish-api.yml`. El workflow:
+El script dispara `.github/workflows/publish-images.yml`. El workflow:
 
 1. se autentica en Azure mediante OIDC;
 2. autentica Docker contra ACR;
-3. construye `api/Dockerfile`;
-4. publica la imagen `ticket-api:baseline` o el tag definido en `config/lab.env`.
+3. construye y publica `ticket-api:baseline`;
+4. construye y publica `ticket-frontend:baseline`.
 
 No se requiere una imagen preparada por el docente ni un registry externo.
 
-### 7. Completar el despliegue inicial
+### 7. Registrar los providers del despliegue completo
+
+Antes del despliegue inicial registrar:
+
+```bash
+az provider register \
+  --namespace Microsoft.DBforPostgreSQL \
+  --wait
+```
+
+```bash
+az provider register \
+  --namespace Microsoft.App \
+  --wait
+```
+
+Verificar ambos estados antes de continuar:
+
+```bash
+az provider show \
+  --namespace Microsoft.DBforPostgreSQL \
+  --query registrationState \
+  --output tsv
+
+az provider show \
+  --namespace Microsoft.App \
+  --query registrationState \
+  --output tsv
+```
+
+### 8. Completar el despliegue inicial
 
 ```bash
 ./scripts/07-deploy-initial.sh
 ```
 
-Terraform crea el resto de la infraestructura, incluido Container Apps, PostgreSQL, Blob Storage y Static Web Apps. Container Apps utiliza una managed identity con `AcrPull` para descargar la imagen privada.
+Terraform crea el resto de la infraestructura:
 
-El script compila finalmente el frontend con la URL creada para la API y lo publica en Static Web Apps.
+- PostgreSQL Flexible Server y la base de datos `tickets`;
+- Storage Account y Blob Container `evidence`;
+- Container Apps Environment;
+- Container App de la API;
+- Container App del frontend.
+
+Los dos Container Apps descargan sus imágenes privadas desde ACR mediante una managed identity con `AcrPull`.
 
 ## Comprobaciones de línea base
 
@@ -143,7 +206,18 @@ Antes de modificar Terraform debe verificarse que:
 4. puede cambiarse su estado;
 5. puede adjuntarse un archivo;
 6. el archivo puede descargarse posteriormente;
-7. la imagen de la API existe en el ACR del equipo.
+7. las imágenes `ticket-api` y `ticket-frontend` existen en ACR;
+8. el contenedor `tfstate` existe y permanece vacío.
+
+## Reproducibilidad
+
+El repositorio versiona:
+
+- `api/package-lock.json`;
+- `frontend/package-lock.json`;
+- `terraform/.terraform.lock.hcl`.
+
+GitHub Actions utiliza `npm ci` para instalar exactamente las dependencias resueltas en los lockfiles.
 
 ## Qué todavía no está resuelto
 
@@ -160,4 +234,4 @@ Esos elementos forman parte de la evolución que se realizará durante el labora
 
 ## Nota sobre el primer apply parcial
 
-El uso de `-target` en `05-provision-registry.sh` es exclusivamente una operación de bootstrap para resolver la dependencia inicial entre ACR y Container Apps. No constituye el flujo normal recomendado de Terraform. Después de publicar la imagen, el despliegue se completa con un `terraform apply` normal.
+El uso de `-target` en `05-provision-registry.sh` se limita al bootstrap de la línea base para resolver la dependencia inicial entre ACR y las imágenes requeridas por Container Apps. No constituye el flujo normal de Terraform. Después de publicar las imágenes, el despliegue se completa con un `terraform apply` normal.
